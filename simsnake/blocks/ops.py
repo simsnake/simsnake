@@ -1,6 +1,6 @@
 import math
 import torch
-from core import Block, SourceBlock, SinkBlock
+from simsnake.core import Block, SourceBlock, SinkBlock
 
 
 class Abs(Block):
@@ -15,9 +15,8 @@ class Abs(Block):
         self.inputs = {"input" : None}
         self.outputs = {"output" : None}
 
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = torch.abs(self.inputs["input"].value)
+    def forward(self):
+        self.outputs["output"].value = torch.abs(self.inputs["input"].value)
 
 
 class Add(Block):
@@ -33,9 +32,8 @@ class Add(Block):
         self.inputs = {"addend1" : None, "addend2" : None}
         self.outputs = {"output" : None}
 
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = torch.add(self.inputs["addend1"].value, self.inputs["addend2"].value)
+    def forward(self):
+        self.outputs["output"].value = torch.add(self.inputs["addend1"].value, self.inputs["addend2"].value)
 
 
 class Bias(Block):
@@ -51,9 +49,8 @@ class Bias(Block):
         self.inputs = {"input" : None}
         self.outputs = {"output" : None}
     
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = torch.add(self.inputs["input"].value, self.offset)
+    def forward(self):
+        self.outputs["output"].value = torch.add(self.inputs["input"].value, self.offset)
 
 
 class Gain(Block):
@@ -69,9 +66,8 @@ class Gain(Block):
         self.inputs = {"input" : None}
         self.outputs = {"output" : None}
     
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = torch.mul(self.inputs["input"].value, self.gain)
+    def forward(self):
+        self.outputs["output"].value = torch.mul(self.inputs["input"].value, self.gain)
 
 
 class RunningSum(Block):
@@ -86,9 +82,8 @@ class RunningSum(Block):
         self.inputs = {"input" : None}
         self.outputs = {"output" : None}
 
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = torch.add(self.inputs["output"].value, self.inputs["input"].value)
+    def forward(self):
+        self.outputs["output"].value = torch.add(self.inputs["output"].value, self.inputs["input"].value)
 
 
 class Constant(SourceBlock):
@@ -102,7 +97,7 @@ class Constant(SourceBlock):
         self.constant = constant
         self.outputs = {"output" : None}
 
-    def forward(self, n=1):
+    def forward(self):
         self.outputs["output"].value = self.constant
 
 
@@ -116,15 +111,14 @@ class IntegralApprox(Block):
         self.inputs = {"value" : None, "time" : None}
         self.outputs = {"integral" : None}
 
-    def forward(self, n=1):
-        for i in range(n):
-            if self.priori_input is None:
-                self.outputs["integral"].value = 0
-            else:
-                dt = self.inputs["time"].value - self.priori_time
-                self.outputs["integral"].value = torch.mul(dt/2, torch.add(self.inputs["value"].value, self.priori_input))
-                self.priori_input = self.inputs["value"].value
-                self.priori_time = self.inputs["time"].value
+    def forward(self):
+        if self.priori_input is None:
+            self.outputs["integral"].value = 0
+        else:
+            dt = self.inputs["time"].value - self.priori_time
+            self.outputs["integral"].value = torch.mul(dt/2, torch.add(self.inputs["value"].value, self.priori_input))
+            self.priori_input = self.inputs["value"].value
+            self.priori_time = self.inputs["time"].value
 
 
 class DerivativeApprox(Block):
@@ -137,19 +131,35 @@ class DerivativeApprox(Block):
         self.inputs = {"value" : None, "time" : None}
         self.outputs = {"derivative" : None}
 
-    def forward(self, n=1):
-        for i in range(n):
-            if self.priori_input is None:
-                self.outputs["derivative"].value = 0
-            else:
-                dt = self.inputs["time"].value - self.priori_time
-                self.outputs["derivative"].value = torch.div(torch.sub(self.inputs["value"].value, self.priori_input), dt)
-                self.priori_input = self.inputs["value"].value
-                self.priori_time = self.inputs["time"].value
+    def forward(self):
+        if self.priori_input is None:
+            self.outputs["derivative"].value = 0
+        else:
+            dt = self.inputs["time"].value - self.priori_time
+            self.outputs["derivative"].value = torch.div(torch.sub(self.inputs["value"].value, self.priori_input), dt)
+            self.priori_input = self.inputs["value"].value
+            self.priori_time = self.inputs["time"].value
 
 
 class LinStep(SourceBlock):
-    pass
+    """Outputs discrete steps given start and stepsize
+    """
+    def __init__(self, start, no_steps, step_size) -> None:
+        super().__init__()
+        self.outputs = {"output" : None}
+        self.start = start
+        self.no_steps = no_steps
+        self.step_size = step_size
+        self.count = 0
+        
+    def forward(self):
+        if self.count == 0:
+            self.outputs["output"].value = self.start
+        if self.count < self.no_steps:
+            self.outputs["output"].value = torch.add(self.outputs["output"].value, self.step_size)
+            self.count += 1
+        else:
+            return 1
 
 
 class Sum(Block):
@@ -160,12 +170,18 @@ class Sum(Block):
         self.inputs = {}
         self.outputs = {"output" : None}
 
-    def add_input(self, var):
-        self.inputs[str(len(self.inputs))] = var
+    def forward(self):
+        self.outputs["output"].value = 0
+        for k, v in self.inputs.items():
+            self.outputs["output"].value = torch.add(self.outputs["output"].value, v.value)
 
-    def forward(self, n=1):
-        for i in range(n):
-            self.outputs["output"].value = 0
-            for k, v in self.inputs.items():
-                self.outputs["output"].value = torch.add(self.outputs["output"].value, v.value)
 
+class Print(SinkBlock):
+    """Prints the output
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.inputs = {"input" : None}
+
+    def forward(self):
+        print(self.inputs["input"].value)

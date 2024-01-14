@@ -27,13 +27,31 @@ class System():
                 self.connections.append(t)
     
     def run(self):
-        pass
+        layers = self.build_execution_order()
+        print(self.execution_order)
+        finished = False
+        while not finished:
+            for i in range(layers+1):
+                for block, l in self.execution_order.items():
+                    if l == i:
+                        if not block.forward() is None:
+                            finished = True
 
     def build_execution_order(self):
-        self.execution_order = [0]*len(self.blocks)
-        for i, b in enumerate(self.blocks):
-            if isinstance(b, SourceBlock) or isinstance(b, Delay):
-                self.execution_order[i] = 0
-            else:
-                b.inputs = 
-                self.execution_order
+        self.execution_order = dict(zip(self.blocks, [0]*len(self.blocks)))
+        max_layers = 0
+        solved = False
+        while solved == False:
+            solved = True
+            for c in self.connections:
+                b = c.input_block
+                # c.output_block is a dependency of b
+                if not isinstance(b, Delay) and not isinstance(b, SourceBlock):
+                    if self.execution_order[c.output_block] > self.execution_order[b]:
+                        self.execution_order[b] = self.execution_order[c.output_block]+1
+                        if max_layers < self.execution_order[b]:
+                            max_layers = self.execution_order[b]
+                        solved = False
+        self.execution_order
+        return max_layers
+

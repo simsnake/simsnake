@@ -1,0 +1,14 @@
+README.md
+setup.py
+simsnake/__init__.py
+simsnake/_version.py
+simsnake.egg-info/PKG-INFO
+simsnake.egg-info/SOURCES.txt
+simsnake.egg-info/dependency_links.txt
+simsnake.egg-info/top_level.txt
+simsnake/blocks/__init__.py
+simsnake/blocks/ops.py
+simsnake/core/__init__.py
+simsnake/core/block.py
+simsnake/core/system.py
+simsnake/core/variable.py

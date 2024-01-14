@@ -10,7 +10,7 @@ class Block():
     def forward(self, n=1):
         """Forward n steps of simulation. Update outputs from given inputs. 
         """
-        pass
+        return False
 
     def check_connection(self):
         """Checks that all outputs and inputs are connected
@@ -57,4 +57,5 @@ class Delay(Block):
         for i in range(n):
             self.delay_buffer.append(self.inputs["input"].value)
             self.outputs["output"].value = self.delay_buffer.pop(0)
+        super().forward()
 
