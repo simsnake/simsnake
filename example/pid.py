@@ -17,6 +17,8 @@ p_term = Gain(0.5) # kP
 i_term = Gain(0.1) # kI
 d_term = Gain(0.3) # kD
 
+pid.add(time, setpoint_src, invert_reading, subtract_err, integrate_err, diff_err, sum_corr, feedback)
+pid.add(p_term, i_term, d_term)
 pid.add(Connect(invert_reading, "output", subtract_err, "addend1"))
 pid.add(Connect(setpoint_src, "output", subtract_err, "addend2"))
 pid.add(Connect(subtract_err, "output", p_term, "input"))
